@@ -25,6 +25,7 @@ set(S src)
 set(LIB_FILES
     ${LIB_DETAIL_FILES}
     ${H}/signal.h               ${S}/signal.cpp
+    ${H}/enum.h
 )
 
 set(T test)

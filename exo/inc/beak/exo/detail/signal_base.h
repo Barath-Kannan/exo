@@ -3,7 +3,7 @@
  *
  * @author      Barath Kannan
  * @date        Sat Feb 24 18:00:10 2018
- * @ingroup     EXO
+ * @ingroup     exo
  */
 
 #ifndef BEAK_EXO_DETAIL_SIGNAL_BASE_H
@@ -13,7 +13,10 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <shared_mutex>
 #include <type_traits>
+#include <beak/exo/enum.h>
 
 namespace beak::exo::detail {
 
@@ -40,11 +43,17 @@ class signal_base : public std::enable_shared_from_this<signal_base<Args...>>
 
 public:
     //default-constructable
-    signal_base() = default;
+    signal_base(ThreadSafe ts = ThreadSafe::On)
+    {
+        if (ts == ThreadSafe::On) {
+            _lock.emplace();
+        }
+    }
 
     //parented signal_base
     template <typename... SArgs>
-    signal_base(std::weak_ptr<signal_base<SArgs...>> weak)
+    signal_base(ThreadSafe ts, std::weak_ptr<signal_base<SArgs...>> weak)
+        : signal_base(ts)
     {
         _parent_eraser = [ this, weak = std::move(weak) ]()
         {
@@ -72,8 +81,9 @@ public:
     template <typename F, typename R = std::invoke_result_t<F, Args...>>
     auto connect(F&& f) -> std::shared_ptr<signal_base<R>>
     {
+        auto ul = _lock.has_value() ? std::unique_lock<std::shared_mutex>() : std::unique_lock<std::shared_mutex>(_lock.value());
         // shared ptr to new signal parented to this
-        auto s = std::make_shared<signal_base<R>>(sft::weak_from_this());
+        auto s = std::make_shared<signal_base<R>>(_lock.has_value() ? ThreadSafe::On : ThreadSafe::Off, sft::weak_from_this());
         auto raw = s.get();
         _slots.push_back(
             {[&f, raw](Args&&... args) {
@@ -92,6 +102,7 @@ public:
     template <typename... FArgs>
     void emit(FArgs&&... fargs) const
     {
+        auto sl = _lock.has_value() ? std::shared_lock<std::shared_mutex>() : std::shared_lock<std::shared_mutex>(_lock.value());
         for (auto&& slot : _slots) {
             slot._function(std::forward<FArgs>(fargs)...);
         }
@@ -101,10 +112,11 @@ private:
     template <typename... SArgs>
     void disconnect(const signal_base<SArgs...>& s)
     {
+        auto ul = _lock.has_value() ? std::unique_lock<std::shared_mutex>() : std::unique_lock<std::shared_mutex>(_lock.value());
         using signal_type = signal_base<SArgs...>;
         using owner_type = std::shared_ptr<signal_type>;
         using weak_type = std::weak_ptr<signal_type>;
-        _slots.erase(std::remove_if(_slots.begin(), _slots.end(), [&](const slot_type& slot) -> bool {
+        _slots.erase(std::remove_if(_slots.begin(), _slots.end(), [&](const slot_type& slot) {
             //check that the type matches
             if (slot._owner.type() == typeid(weak_type)) {
                 auto weak = std::any_cast<weak_type>(slot._owner);
@@ -125,9 +137,10 @@ private:
 
     std::vector<slot_type> _slots;
 
-    //calls the parents disconnect method for this signal
-    //invoked by the destructor
+    //calls the parents disconnect method for this signal in the destructor
     std::function<void()> _parent_eraser;
+
+    mutable std::optional<std::shared_mutex> _lock;
 };
 
 } //namespace beak::exo::detail

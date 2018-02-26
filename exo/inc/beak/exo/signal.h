@@ -11,14 +11,16 @@
 
 #include <beak/exo/detail/signal_impl.h>
 
-namespace beak::exo{
+namespace beak::exo {
 
 template <typename... Args>
 class signal
 {
 public:
     //default constructable
-    signal() = default;
+    signal(ThreadSafe ts = ThreadSafe::On)
+        : _signal_impl(ts)
+    {}
 
     //non-copyable
     signal(const signal&) = delete;
@@ -48,11 +50,11 @@ public:
 
 private:
     signal(detail::signal_impl<Args...> signal_impl)
-    : _signal_impl(std::move(signal_impl)){}
+        : _signal_impl(std::move(signal_impl))
+    {}
     detail::signal_impl<Args...> _signal_impl;
 };
 
 } // namespace beak::exo
 
 #endif // BEAK_EXO_SIGNAL_H
-

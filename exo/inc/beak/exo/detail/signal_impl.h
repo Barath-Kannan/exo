@@ -10,6 +10,7 @@
 #define BEAK_EXO_SIGNAL_IMPL_H
 
 #include <beak/exo/detail/signal_base.h>
+#include <beak/exo/enum.h>
 
 namespace beak::exo::detail {
 
@@ -20,8 +21,8 @@ class signal_impl
 
 public:
     //default constructable
-    signal_impl()
-        : _signal_base(std::make_shared<base_type>())
+    signal_impl(ThreadSafe ts = ThreadSafe::On)
+        : _signal_base(std::make_shared<base_type>(ts))
     {}
 
     signal_impl(std::shared_ptr<base_type> s)
