@@ -30,10 +30,10 @@ public:
     signal(signal&&) = default;
     signal& operator=(signal&&) = default;
 
-    template <typename F, typename R = std::invoke_result_t<F, Args...>>
-    [[nodiscard]] auto connect(F&& f) -> signal<R>
+    template <typename F, typename... ExtraArgs, typename R = std::invoke_result_t<F, ExtraArgs..., Args...>>
+    [[nodiscard]] auto connect(F&& f, ExtraArgs&&... extra_args) -> signal<R>
     {
-        return _signal_impl.connect(std::forward<F>(f));
+        return _signal_impl.connect(std::forward<F>(f), std::forward<ExtraArgs>(extra_args)...);
     }
 
     template <typename... FArgs>

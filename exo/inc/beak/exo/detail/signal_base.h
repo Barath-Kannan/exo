@@ -36,6 +36,11 @@ template <typename... Args>
 using function_type_t = typename function_type<Args...>::type;
 
 template <typename... Args>
+struct sfinae_true : std::true_type
+{
+};
+
+template <typename... Args>
 class signal_base : public std::enable_shared_from_this<signal_base<Args...>>
 {
     using sft = std::enable_shared_from_this<signal_base<Args...>>;
@@ -78,21 +83,21 @@ public:
     signal_base(signal_base&&) = delete;
     signal_base& operator=(signal_base&&) = delete;
 
-    template <typename F, typename R = std::invoke_result_t<F, Args...>>
-    auto connect(F&& f) -> std::shared_ptr<signal_base<R>>
+    template <typename F, typename... ExtraArgs, typename R = std::invoke_result_t<F, ExtraArgs..., Args...>>
+    auto connect(F&& f, ExtraArgs&&... extra_args) -> std::shared_ptr<signal_base<R>>
     {
         auto ul = _lock.has_value() ? std::unique_lock<std::shared_mutex>() : std::unique_lock<std::shared_mutex>(_lock.value());
         // shared ptr to new signal parented to this
         auto s = std::make_shared<signal_base<R>>(_lock.has_value() ? ThreadSafe::On : ThreadSafe::Off, sft::weak_from_this());
         auto raw = s.get();
         _slots.push_back(
-            {[&f, raw](Args&&... args) {
+            {[&f, &extra_args..., raw](Args&&... args) {
                  if constexpr (std::is_void_v<R>) {
-                     std::invoke(f, std::forward<Args>(args)...);
+                     std::invoke(f, &extra_args..., std::forward<Args>(args)...);
                      raw->emit();
                  }
                  else {
-                     raw->emit(std::invoke(f, std::forward<Args>(args)...));
+                     raw->emit(std::invoke(f, &extra_args..., std::forward<Args>(args)...));
                  }
              },
              std::weak_ptr<signal_base<R>>(s)});
