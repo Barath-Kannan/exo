@@ -17,6 +17,7 @@
 #include <shared_mutex>
 #include <type_traits>
 #include <beak/exo/enum.h>
+#include <beak/exo/traits.h>
 
 namespace beak::exo::detail {
 

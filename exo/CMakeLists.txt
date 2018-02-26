@@ -18,6 +18,7 @@ set(S src/detail)
 set(LIB_DETAIL_FILES
     ${H}/signal_base.h
     ${H}/signal_impl.h
+    ${H}/detector.h
 )
 
 set(H inc/beak/exo)
@@ -26,6 +27,7 @@ set(LIB_FILES
     ${LIB_DETAIL_FILES}
     ${H}/signal.h               ${S}/signal.cpp
     ${H}/enum.h
+    ${H}/traits.h
 )
 
 set(T test)
